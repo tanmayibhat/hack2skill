@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabLink | Campus Lab Resource Sharing</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="/">
+        <span class="brand-mark">L</span>
+        <span>
+            LabLink
+            <small>Campus Resource Sharing</small>
+        </span>
+    </a>
+
+    <div class="role-form">
+        <span>{{ user.name }} ({{ user.role }})</span>
+        <form action="{{ url_for('logout') }}" method="post">
+            <button type="submit" class="btn btn-dark">Logout</button>
+        </form>
+    </div>
+</header>
+<main class="container">
+  <section class="hero">
+    <div><p class="eyebrow">ONE CAMPUS. SHARED POSSIBILITIES.</p>
+    <h1>Find the right lab resource<br><span>for your next big idea.</span></h1>
+    <p class="hero-copy">Discover specialised equipment across departments, request access, and coordinate lab time without the scheduling chaos.</p></div>
+    <div class="hero-art"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="chip">LAB<br>LINK</div><span class="float f1">⌘</span><span class="float f2">⚙</span><span class="float f3">⌁</span></div>
+  </section>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category,message in messages %}<div class="alert {{category}}">{{message}}</div>{% endfor %}{% endif %}
+  {% endwith %}
+  <section class="stats">
+    <div class="stat"><span class="stat-icon">▦</span><div><strong>{{ equipment|length }}</strong><small>Resources shown</small></div></div>
+    <div class="stat"><span class="stat-icon">◷</span><div><strong>{{ pending_count }}</strong><small>Pending requests</small></div></div>
+    <div class="stat"><span class="stat-icon">✓</span><div><strong>{{ approved_count }}</strong><small>Approved bookings</small></div></div>
+  </section>
+
+  {% if role == 'Student' %}
+  <section class="section-head"><div><p class="eyebrow">STUDENT WORKSPACE</p><h2>Explore laboratory resources</h2><p class="muted">Search by equipment name or category, or filter by department.</p></div></section>
+  <form class="filters" method="get"><input name="q" placeholder="Search equipment..." value="{{ request.args.get('q','') }}"><select name="department">
+    <option value="">All departments</option>
+    {% for d in departments %}
+    <option value="{{ d }}" {{ 'selected' if request.args.get('department') == d else '' }}>
+        {{ d }}
+    </option>
+    {% endfor %}
+</select><button class="btn btn-dark">Search</button><a class="clear" href="/">Clear</a></form>
+  <section class="panel" id="ai-assistant">
+    <div class="section-head">
+        <div>
+            <p class="eyebrow">POWERED BY GROQ AI</p>
+            <h2>✦ AI Project Assistant</h2>
+            <p class="muted">
+                Describe your project and discover which laboratory
+                resources could help you build it.
+            </p>
+        </div>
+    </div>
+
+    <form action="/ai-recommend" method="post">
+        <label class="full">
+            Describe your project
+            <textarea
+                name="project_description"
+                rows="4"
+                required
+                placeholder="Example: I want to build an IoT-based smart irrigation system that monitors soil moisture and automatically controls water supply."
+            >{{ ai_project }}</textarea>
+        </label>
+
+        <div class="form-bottom">
+            <span class="muted">AI-powered equipment recommendations</span>
+            <button type="submit" class="btn btn-primary">
+                ✦ Find suitable equipment
+            </button>
+        </div>
+    </form>
+
+    {% if ai_result %}
+    <div class="availability-box" style="margin-top: 24px;">
+        <h3>✦ Recommended equipment for your project</h3>
+        <div style="white-space: pre-wrap; line-height: 1.7;">{{ ai_result }}</div>
+    </div>
+    {% endif %}
+</section>
+  <div class="resource-grid">
+    {% for e in equipment %}
+    <article class="resource-card"><div class="resource-top"><span class="resource-icon">{{ '⌘' if e.category=='Development Kit' else ('▤' if e.category=='Workstation' else '⚙') }}</span><span class="tag">{{e.category}}</span></div><h3>{{e.name}}</h3><p class="muted">{{e.description}}</p><div class="resource-meta"><span>⌖ {{e.department}}</span><span>▣ {{e.quantity}} available</span></div><div class="location">⌂ {{e.location}}</div><button class="btn btn-outline" onclick="selectEquipment({{e.id}})">Request access <span>→</span></button></article>
+    {% else %}<p class="empty">No matching resources. Try another search.</p>{% endfor %}
+  </div>
+  <section class="panel booking-panel" id="booking-form"><div class="section-head"><div><p class="eyebrow">PROJECT ACCESS</p><h2>Request a booking</h2><p class="muted">Tell us what you're building and when you need the resource.</p></div></div> 
+
+{% if suggestions %}
+<div class="availability-box">
+    <div class="availability-heading">
+        <span class="availability-icon">✓</span>
+        <div>
+            <strong>Available Time Slots</strong>
+            <p>Choose an alternative slot for {{ form_data.get('booking_date', '') }}.</p>
+        </div>
+    </div>
+
+    <div class="suggested-slots">
+       
+{% for item in suggestions %}
+<div class="suggestion-card">
+    <button class="suggested-slot"
+            onclick="selectSlot('{{ item.slot }}')">
+        {{ item.slot }}
+    </button>
+
+    <p class="suggestion-reason">
+        {{ item.reason }}
+    </p>
+</div>
+{% endfor %}
+ 
+    </div>
+
+    <p class="availability-hint">
+        Click any available slot to select it automatically.
+    </p>
+</div>
+{% endif %}
+
+  <form action="/book" method="post" class="form-grid">
+    <p class="full muted">
+    Booking as <strong>{{ user.name }}</strong> —
+    {{ user.department }}
+    </p>
+    <label class="full">
+    Equipment
+    <select name="equipment_id" id="equipment-select" required>
+        <option value="">Choose a resource</option>
+        {% for e in all_equipment %}
+        <option value="{{ e.id }}"
+            {{ 'selected' if form_data.get('equipment_id', '')|string == e.id|string else '' }}>
+            {{ e.name }} — {{ e.department }}
+        </option>
+        {% endfor %}
+    </select>
+</label>
+    <label>Project title<input name="project" value="{{ form_data.get('project', '') }}" required placeholder="e.g. Smart irrigation system"></label>
+    <label>Project deadline<input type="date" name="deadline" min="{{today}}" value="{{ form_data.get('deadline', '') }}" required></label>
+    <label>Requested date<input type="date" name="booking_date" min="{{today}}" value="{{ form_data.get('booking_date', '') }}" required></label>
+    <label>Time slot<select name="slot" required><option value="">Choose a slot</option>{% for s in slots %}<option value="{{s}}"
+{{ 'selected' if form_data.get('slot') == s else '' }}>
+{{s}}
+</option>{% endfor %}</select></label>
+    <label class="full">Purpose / requirements<textarea name="purpose" rows="3" placeholder="Briefly explain why you need this equipment...">{{ form_data.get('purpose', '') }}</textarea></label>
+    <div class="full form-bottom"><span class="muted">Requests are sent to faculty for approval.</span><button class="btn btn-primary">Submit request →</button></div>
+  </form></section>
+  {% elif role == 'Faculty' %}
+  <section class="section-head"><div><p class="eyebrow">FACULTY WORKSPACE</p><h2>Review access requests</h2><p class="muted">Approve feasible requests or reject them with a comment.</p></div></section>
+  {% elif role == 'Admin' %}
+  <section class="section-head"><div><p class="eyebrow">ADMIN WORKSPACE</p><h2>Manage campus resources</h2><p class="muted">Add equipment to the shared catalogue and monitor requests.</p></div></section>
+  <section class="panel"><h3>Add a resource</h3><form action="/equipment/add" method="post" class="form-grid">
+    <label>Equipment name<input name="name" required></label><label>Department<input name="department" required></label>
+    <label>Category<input name="category" placeholder="Development Kit / Workstation" required></label><label>Location<input name="location"></label>
+    <label>Quantity<input type="number" name="quantity" min="1" value="1"></label><label class="full">Description<textarea name="description" rows="2"></textarea></label>
+    <div class="full form-bottom"><span></span><button class="btn btn-primary">Add equipment</button></div>
+  </form></section>
+  {% endif %}
+
+  <section class="section-head requests-heading"><div><p class="eyebrow">{{ 'FACULTY REVIEW' if role=='Faculty' else 'BOOKING ACTIVITY' }}</p><h2>{{ 'Requests awaiting your decision' if role=='Faculty' else 'Booking requests' }}</h2></div></section>
+  <div class="table-wrap"><table><thead><tr><th>Student / Project</th><th>Resource</th><th>Date & time</th><th>Deadline</th><th>Status</th>{% if role in ['Faculty','Admin'] %}<th>Review</th>{% endif %}</tr></thead><tbody>
+  {% for b in bookings %}
+    {% if role != 'Student' or b.student %}
+    <tr><td><strong>{{b.student}}</strong><small>{{b.project}}</small><small>{{b.department or ''}}</small></td><td>{{b.equipment_name}}<small>{{b.location}}</small></td><td>{{b.booking_date}}<small>{{b.slot}}</small></td><td>{{b.deadline}}</td><td><span class="status {{b.status|lower}}">{{b.status}}</span>{% if b.faculty_comment %}<small>{{b.faculty_comment}}</small>{% endif %}</td>
+    {% if role in ['Faculty','Admin'] %}<td>{% if b.status=='Pending' %}<form action="/decision/{{b.id}}" method="post" class="decision"><input name="comment" placeholder="Optional comment"><button name="action" value="Approved" class="mini approve">Approve</button><button name="action" value="Rejected" class="mini reject">Reject</button></form>{% else %}<span class="muted">Reviewed</span>{% endif %}</td>{% endif %}
+    </tr>{% endif %}
+  {% else %}<tr><td colspan="6" class="empty">No booking requests yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <section class="ai-note"><div class="ai-symbol">✦</div><div><strong>LabLink Smart Scheduler</strong><p>When a requested slot is unavailable, the prototype suggests open slots and explains the fairness and deadline factors. This demo uses transparent rule-based recommendations rather than a live external AI service.</p></div></section>
+  <footer>LabLink Prototype <span>Making shared resources work smarter.</span></footer>
+</main>
+<script>
+function selectEquipment(id) {
+  const select = document.getElementById('equipment-select');
+  select.value = String(id);
+
+  document.getElementById('booking-form')
+    .scrollIntoView({behavior: 'smooth'});
+}
+function selectSlot(slot) {
+    const slotDropdown = document.querySelector(
+        'select[name="slot"]'
+    );
+
+    slotDropdown.value = slot;
+    slotDropdown.style.border = "2px solid #16845b";
+
+    slotDropdown.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+}
+</script>
+</body></html>

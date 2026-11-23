@@ -1,0 +1,90 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Register | LabLink</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .auth-container {
+            max-width: 460px;
+            margin: 55px auto;
+            padding: 35px;
+            background: white;
+            border: 1px solid #e5ebf1;
+            border-radius: 16px;
+            box-shadow: 0 10px 35px rgba(20,43,74,.08);
+        }
+        .auth-container h1 { color: #142b4a; margin-bottom: 8px; }
+        .auth-container p { color: #718096; margin-bottom: 25px; }
+        .auth-container label { display: block; margin-bottom: 14px; font-weight: 600; }
+        .auth-container input {
+            display: block; width: 100%; box-sizing: border-box;
+            padding: 12px; margin-top: 7px;
+            border: 1px solid #dce3eb; border-radius: 8px;
+            font: inherit;
+        }
+        .auth-container button { width: 100%; margin-top: 8px; }
+        .auth-link { text-align: center; margin-top: 22px; }
+        .auth-link a { color: #2364aa; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/">
+            <span class="brand-mark">L</span>
+            <span>LabLink<small>Campus Resource Sharing</small></span>
+        </a>
+    </header>
+
+    <main class="container">
+        <section class="auth-container">
+            <h1>Create an account</h1>
+            <p>Register as a student to start accessing laboratory resources.</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                    <div class="alert {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('register') }}">
+                <label>Full name
+                    <input type="text" name="name" required
+                           placeholder="Enter your full name">
+                </label>
+
+                <label>Email address
+                    <input type="email" name="email" required
+                           placeholder="Enter your email">
+                </label>
+
+                <label>Department
+                    <input type="text" name="department" required
+                           placeholder="e.g. Computer Science">
+                </label>
+
+                <label>Password
+                    <input type="password" name="password" required
+                           minlength="8" placeholder="At least 8 characters">
+                </label>
+
+                <label>Confirm password
+                    <input type="password" name="confirm_password" required
+                           minlength="8" placeholder="Re-enter your password">
+                </label>
+
+                <button type="submit" class="btn btn-primary">
+                    Create account →
+                </button>
+            </form>
+
+            <div class="auth-link">
+                Already registered?
+                <a href="{{ url_for('login') }}">Login here</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
